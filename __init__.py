@@ -1,8 +1,10 @@
-import logging
-from fontTools.misc.loggingTools import configLogger
+# Protocol Buffers - Google's data interchange format
+# Copyright 2008 Google Inc.  All rights reserved.
+#
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file or at
+# https://developers.google.com/open-source/licenses/bsd
 
-log = logging.getLogger(__name__)
+# Copyright 2007 Google Inc. All Rights Reserved.
 
-version = __version__ = "4.61.1"
-
-__all__ = ["version", "log", "configLogger"]
+__version__ = '6.33.5'
