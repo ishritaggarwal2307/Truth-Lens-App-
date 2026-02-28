@@ -1,4 +1,27 @@
-from .convert import (
+from . import core
+from . import beat
+from . import decompose
+from . import display
+from . import effects
+from . import feature
+from . import filters
+from . import onset
+from . import segment
+from . import sequence
+from . import util
+
+from ._cache import cache as cache
+
+from .util.exceptions import (
+    LibrosaError as LibrosaError,
+    ParameterError as ParameterError,
+)
+from .util.files import example as example, ex as ex
+from .util.files import cite as cite
+
+from .version import show_versions as show_versions
+
+from .core import (
     frames_to_samples as frames_to_samples,
     frames_to_time as frames_to_time,
     samples_to_frames as samples_to_frames,
@@ -41,9 +64,6 @@ from .convert import (
     note_to_svara_c as note_to_svara_c,
     hz_to_svara_h as hz_to_svara_h,
     hz_to_svara_c as hz_to_svara_c,
-)
-
-from .audio import (
     load as load,
     stream as stream,
     to_mono as to_mono,
@@ -58,9 +78,6 @@ from .audio import (
     chirp as chirp,
     mu_compress as mu_compress,
     mu_expand as mu_expand,
-)
-
-from .spectrum import (
     stft as stft,
     istft as istft,
     magphase as magphase,
@@ -75,37 +92,22 @@ from .spectrum import (
     fmt as fmt,
     pcen as pcen,
     griffinlim as griffinlim,
-)
-
-from .pitch import (
     estimate_tuning as estimate_tuning,
     pitch_tuning as pitch_tuning,
     piptrack as piptrack,
     yin as yin,
     pyin as pyin,
-)
-
-from .constantq import (
     cqt as cqt,
     hybrid_cqt as hybrid_cqt,
     pseudo_cqt as pseudo_cqt,
     icqt as icqt,
     griffinlim_cqt as griffinlim_cqt,
     vqt as vqt,
-)
-
-from .harmonic import (
     salience as salience,
     interp_harmonics as interp_harmonics,
     f0_harmonics as f0_harmonics,
-)
-
-from .fft import (
     get_fftlib as get_fftlib,
     set_fftlib as set_fftlib,
-)
-
-from .notation import (
     key_to_degrees as key_to_degrees,
     key_to_notes as key_to_notes,
     mela_to_degrees as mela_to_degrees,
@@ -115,9 +117,6 @@ from .notation import (
     list_thaat as list_thaat,
     fifths_to_note as fifths_to_note,
     interval_to_fjs as interval_to_fjs,
-)
-
-from .intervals import (
     interval_frequencies as interval_frequencies,
     pythagorean_intervals as pythagorean_intervals,
     plimit_intervals as plimit_intervals,
