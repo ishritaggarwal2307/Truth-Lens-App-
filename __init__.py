@@ -1,150 +1,169 @@
-"""Configure global settings and get information about the working environment."""
+"""Utilities to load popular datasets and artificial data generators."""
 
 # Authors: The scikit-learn developers
 # SPDX-License-Identifier: BSD-3-Clause
 
-# Machine learning module for Python
-# ==================================
-#
-# sklearn is a Python module integrating classical machine
-# learning algorithms in the tightly-knit world of scientific Python
-# packages (numpy, scipy, matplotlib).
-#
-# It aims to provide simple and efficient solutions to learning problems
-# that are accessible to everybody and reusable in various contexts:
-# machine-learning as a versatile tool for science and engineering.
-#
-# See https://scikit-learn.org for complete documentation.
+import textwrap
 
-import importlib as _importlib
-import logging
-import os
-import random
+from sklearn.datasets._base import (
+    clear_data_home,
+    fetch_file,
+    get_data_home,
+    load_breast_cancer,
+    load_diabetes,
+    load_digits,
+    load_files,
+    load_iris,
+    load_linnerud,
+    load_sample_image,
+    load_sample_images,
+    load_wine,
+)
+from sklearn.datasets._california_housing import fetch_california_housing
+from sklearn.datasets._covtype import fetch_covtype
+from sklearn.datasets._kddcup99 import fetch_kddcup99
+from sklearn.datasets._lfw import fetch_lfw_pairs, fetch_lfw_people
+from sklearn.datasets._olivetti_faces import fetch_olivetti_faces
+from sklearn.datasets._openml import fetch_openml
+from sklearn.datasets._rcv1 import fetch_rcv1
+from sklearn.datasets._samples_generator import (
+    make_biclusters,
+    make_blobs,
+    make_checkerboard,
+    make_circles,
+    make_classification,
+    make_friedman1,
+    make_friedman2,
+    make_friedman3,
+    make_gaussian_quantiles,
+    make_hastie_10_2,
+    make_low_rank_matrix,
+    make_moons,
+    make_multilabel_classification,
+    make_regression,
+    make_s_curve,
+    make_sparse_coded_signal,
+    make_sparse_spd_matrix,
+    make_sparse_uncorrelated,
+    make_spd_matrix,
+    make_swiss_roll,
+)
+from sklearn.datasets._species_distributions import fetch_species_distributions
+from sklearn.datasets._svmlight_format_io import (
+    dump_svmlight_file,
+    load_svmlight_file,
+    load_svmlight_files,
+)
+from sklearn.datasets._twenty_newsgroups import (
+    fetch_20newsgroups,
+    fetch_20newsgroups_vectorized,
+)
 
-from sklearn._config import config_context, get_config, set_config
-
-logger = logging.getLogger(__name__)
-
-
-# PEP0440 compatible formatted version, see:
-# https://www.python.org/dev/peps/pep-0440/
-#
-# Generic release markers:
-#   X.Y.0   # For first release after an increment in Y
-#   X.Y.Z   # For bugfix releases
-#
-# Admissible pre-release markers:
-#   X.Y.ZaN   # Alpha release
-#   X.Y.ZbN   # Beta release
-#   X.Y.ZrcN  # Release Candidate
-#   X.Y.Z     # Final release
-#
-# Dev branch marker is: 'X.Y.dev' or 'X.Y.devN' where N is an integer.
-# 'X.Y.dev0' is the canonical version of 'X.Y.dev'
-#
-__version__ = "1.8.0"
-
-
-# On OSX, we can get a runtime error due to multiple OpenMP libraries loaded
-# simultaneously. This can happen for instance when calling BLAS inside a
-# prange. Setting the following environment variable allows multiple OpenMP
-# libraries to be loaded. It should not degrade performances since we manually
-# take care of potential over-subcription performance issues, in sections of
-# the code where nested OpenMP loops can happen, by dynamically reconfiguring
-# the inner OpenMP runtime to temporarily disable it while under the scope of
-# the outer OpenMP parallel section.
-os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "True")
-
-# Workaround issue discovered in intel-openmp 2019.5:
-# https://github.com/ContinuumIO/anaconda-issues/issues/11294
-os.environ.setdefault("KMP_INIT_AT_FORK", "FALSE")
-
-# `_distributor_init` allows distributors to run custom init code.
-# For instance, for the Windows wheel, this is used to pre-load the
-# vcomp shared library runtime for OpenMP embedded in the sklearn/.libs
-# sub-folder.
-# It is necessary to do this prior to importing show_versions as the
-# later is linked to the OpenMP runtime to make it possible to introspect
-# it and importing it first would fail if the OpenMP dll cannot be found.
-from sklearn import __check_build, _distributor_init  # noqa: E402 F401
-from sklearn.base import clone  # noqa: E402
-from sklearn.utils._show_versions import show_versions  # noqa: E402
-
-_submodules = [
-    "calibration",
-    "cluster",
-    "covariance",
-    "cross_decomposition",
-    "datasets",
-    "decomposition",
-    "dummy",
-    "ensemble",
-    "exceptions",
-    "experimental",
-    "externals",
-    "feature_extraction",
-    "feature_selection",
-    "frozen",
-    "gaussian_process",
-    "inspection",
-    "isotonic",
-    "kernel_approximation",
-    "kernel_ridge",
-    "linear_model",
-    "manifold",
-    "metrics",
-    "mixture",
-    "model_selection",
-    "multiclass",
-    "multioutput",
-    "naive_bayes",
-    "neighbors",
-    "neural_network",
-    "pipeline",
-    "preprocessing",
-    "random_projection",
-    "semi_supervised",
-    "svm",
-    "tree",
-    "discriminant_analysis",
-    "impute",
-    "compose",
+__all__ = [
+    "clear_data_home",
+    "dump_svmlight_file",
+    "fetch_20newsgroups",
+    "fetch_20newsgroups_vectorized",
+    "fetch_california_housing",
+    "fetch_covtype",
+    "fetch_file",
+    "fetch_kddcup99",
+    "fetch_lfw_pairs",
+    "fetch_lfw_people",
+    "fetch_olivetti_faces",
+    "fetch_openml",
+    "fetch_rcv1",
+    "fetch_species_distributions",
+    "get_data_home",
+    "load_breast_cancer",
+    "load_diabetes",
+    "load_digits",
+    "load_files",
+    "load_iris",
+    "load_linnerud",
+    "load_sample_image",
+    "load_sample_images",
+    "load_svmlight_file",
+    "load_svmlight_files",
+    "load_wine",
+    "make_biclusters",
+    "make_blobs",
+    "make_checkerboard",
+    "make_circles",
+    "make_classification",
+    "make_friedman1",
+    "make_friedman2",
+    "make_friedman3",
+    "make_gaussian_quantiles",
+    "make_hastie_10_2",
+    "make_low_rank_matrix",
+    "make_moons",
+    "make_multilabel_classification",
+    "make_regression",
+    "make_s_curve",
+    "make_sparse_coded_signal",
+    "make_sparse_spd_matrix",
+    "make_sparse_uncorrelated",
+    "make_spd_matrix",
+    "make_swiss_roll",
 ]
-
-__all__ = _submodules + [
-    # Non-modules:
-    "clone",
-    "get_config",
-    "set_config",
-    "config_context",
-    "show_versions",
-]
-
-
-def __dir__():
-    return __all__
 
 
 def __getattr__(name):
-    if name in _submodules:
-        return _importlib.import_module(f"sklearn.{name}")
-    else:
-        try:
-            return globals()[name]
-        except KeyError:
-            raise AttributeError(f"Module 'sklearn' has no attribute '{name}'")
+    if name == "load_boston":
+        msg = textwrap.dedent(
+            """
+            `load_boston` has been removed from scikit-learn since version 1.2.
 
+            The Boston housing prices dataset has an ethical problem: as
+            investigated in [1], the authors of this dataset engineered a
+            non-invertible variable "B" assuming that racial self-segregation had a
+            positive impact on house prices [2]. Furthermore the goal of the
+            research that led to the creation of this dataset was to study the
+            impact of air quality but it did not give adequate demonstration of the
+            validity of this assumption.
 
-def setup_module(module):
-    """Fixture for the tests to assure globally controllable seeding of RNGs"""
+            The scikit-learn maintainers therefore strongly discourage the use of
+            this dataset unless the purpose of the code is to study and educate
+            about ethical issues in data science and machine learning.
 
-    import numpy as np
+            In this special case, you can fetch the dataset from the original
+            source::
 
-    # Check if a random seed exists in the environment, if not create one.
-    _random_seed = os.environ.get("SKLEARN_SEED", None)
-    if _random_seed is None:
-        _random_seed = np.random.uniform() * np.iinfo(np.int32).max
-    _random_seed = int(_random_seed)
-    print("I: Seeding RNGs with %r" % _random_seed)
-    np.random.seed(_random_seed)
-    random.seed(_random_seed)
+                import pandas as pd
+                import numpy as np
+
+                data_url = "http://lib.stat.cmu.edu/datasets/boston"
+                raw_df = pd.read_csv(data_url, sep="\\s+", skiprows=22, header=None)
+                data = np.hstack([raw_df.values[::2, :], raw_df.values[1::2, :2]])
+                target = raw_df.values[1::2, 2]
+
+            Alternative datasets include the California housing dataset and the
+            Ames housing dataset. You can load the datasets as follows::
+
+                from sklearn.datasets import fetch_california_housing
+                housing = fetch_california_housing()
+
+            for the California housing dataset and::
+
+                from sklearn.datasets import fetch_openml
+                housing = fetch_openml(name="house_prices", as_frame=True)
+
+            for the Ames housing dataset.
+
+            [1] M Carlisle.
+            "Racist data destruction?"
+            <https://medium.com/@docintangible/racist-data-destruction-113e3eff54a8>
+
+            [2] Harrison Jr, David, and Daniel L. Rubinfeld.
+            "Hedonic housing prices and the demand for clean air."
+            Journal of environmental economics and management 5.1 (1978): 81-102.
+            <https://www.researchgate.net/publication/4974606_Hedonic_housing_prices_and_the_demand_for_clean_air>
+            """
+        )
+        raise ImportError(msg)
+    try:
+        return globals()[name]
+    except KeyError:
+        # This is turned into the appropriate ImportError
+        raise AttributeError
