@@ -1,143 +1,187 @@
-import os
-import warnings
-from functools import cache
-from ctypes import c_int, c_char_p
-from llvmlite.binding import ffi
+# pylint: disable=missing-function-docstring
+"""Global configuration for XGBoost"""
 
-# these are here as they cannot be lazy bound as the module globals make calls
-# to the LLVMPY API functions
-ffi.lib.LLVMPY_HasSVMLSupport.argtypes = ()
-ffi.lib.LLVMPY_HasSVMLSupport.restype = c_int
+import ctypes
+import json
+from contextlib import contextmanager
+from functools import wraps
+from typing import Any, Callable, Dict, Iterator, Optional, cast
 
-ffi.lib.LLVMPY_IsStaticLibstdcxxLinkageBuild.argtypes = ()
-ffi.lib.LLVMPY_IsStaticLibstdcxxLinkageBuild.restype = c_int
-
-ffi.lib.LLVMPY_IsDynamicLLVMLinkageBuild.argtypes = ()
-ffi.lib.LLVMPY_IsDynamicLLVMLinkageBuild.restype = c_int
-
-ffi.lib.LLVMPY_PackageFormat.argtypes = ()
-ffi.lib.LLVMPY_PackageFormat.restype = c_char_p
-
-ffi.lib.LLVMPY_LlvmAssertionsState.argtypes = ()
-ffi.lib.LLVMPY_LlvmAssertionsState.restype = c_char_p
+from ._typing import _F
+from .core import _LIB, _check_call, c_str, py_str
 
 
-def _has_svml():
+def config_doc(
+    *,
+    header: Optional[str] = None,
+    extra_note: Optional[str] = None,
+    parameters: Optional[str] = None,
+    returns: Optional[str] = None,
+    see_also: Optional[str] = None,
+) -> Callable[[_F], _F]:
+    """Decorator to format docstring for config functions.
+
+    Parameters
+    ----------
+    header: str
+        An introducion to the function
+    extra_note: str
+        Additional notes
+    parameters: str
+        Parameters of the function
+    returns: str
+        Return value
+    see_also: str
+        Related functions
     """
-    Returns True if SVML was enabled at FFI support compile time.
+
+    doc_template = """
+    {header}
+
+    Global configuration consists of a collection of parameters that can be applied in the
+    global scope. See :ref:`global_config` for the full list of parameters supported in
+    the global configuration.
+
+    {extra_note}
+
+    .. versionadded:: 1.4.0
     """
-    if ffi.lib.LLVMPY_HasSVMLSupport() == 0:
-        return False
-    else:
-        return True
 
+    common_example = """
+    Example
+    -------
 
-has_svml = _has_svml()
+    .. code-block:: python
 
+        import xgboost as xgb
 
-def _build_llvm_linkage_type():
+        # Show all messages, including ones pertaining to debugging
+        xgb.set_config(verbosity=2)
+
+        # Get current value of global configuration
+        # This is a dict containing all parameters in the global configuration,
+        # including 'verbosity'
+        config = xgb.get_config()
+        assert config['verbosity'] == 2
+
+        # Example of using the context manager xgb.config_context().
+        # The context manager will restore the previous value of the global
+        # configuration upon exiting.
+        with xgb.config_context(verbosity=0):
+            # Suppress warning caused by model generated with XGBoost version < 1.0.0
+            bst = xgb.Booster(model_file='./old_model.bin')
+        assert xgb.get_config()['verbosity'] == 2  # old value restored
+
+    Nested configuration context is also supported:
+
+    Example
+    -------
+
+    .. code-block:: python
+
+        with xgb.config_context(verbosity=3):
+            assert xgb.get_config()["verbosity"] == 3
+            with xgb.config_context(verbosity=2):
+                assert xgb.get_config()["verbosity"] == 2
+
+        xgb.set_config(verbosity=2)
+        assert xgb.get_config()["verbosity"] == 2
+        with xgb.config_context(verbosity=3):
+            assert xgb.get_config()["verbosity"] == 3
     """
-    Returns "static" if the FFI support is statically linked against LLVM,
-    returns "dynamic" otherwise.
-    """
-    if ffi.lib.LLVMPY_IsDynamicLLVMLinkageBuild() == 0:
-        return "static"
-    else:
-        return "dynamic"
+
+    def none_to_str(value: Optional[str]) -> str:
+        return "" if value is None else value
+
+    def config_doc_decorator(func: _F) -> _F:
+        func.__doc__ = (
+            doc_template.format(
+                header=none_to_str(header), extra_note=none_to_str(extra_note)
+            )
+            + none_to_str(parameters)
+            + none_to_str(returns)
+            + none_to_str(common_example)
+            + none_to_str(see_also)
+        )
+
+        @wraps(func)
+        def wrap(*args: Any, **kwargs: Any) -> Any:
+            return func(*args, **kwargs)
+
+        return cast(_F, wrap)
+
+    return config_doc_decorator
 
 
-build_llvm_linkage_type = _build_llvm_linkage_type()
+@config_doc(
+    header="""
+    Set global configuration.
+    """,
+    parameters="""
+    Parameters
+    ----------
+    new_config: Dict[str, Any]
+        Keyword arguments representing the parameters and their values
+            """,
+)
+def set_config(**new_config: Any) -> None:
+    not_none = {}
+    for k, v in new_config.items():
+        if v is not None:
+            not_none[k] = v
+    config = json.dumps(not_none)
+    _check_call(_LIB.XGBSetGlobalConfig(c_str(config)))
 
 
-def _build_libstdcxx_linkage_type():
-    """
-    Returns "static" if the FFI support is statically linked against libstdc++,
-    returns "dynamic" otherwise.
-    """
-    if ffi.lib.LLVMPY_IsStaticLibstdcxxLinkageBuild() == 1:
-        return "static"
-    else:
-        return "dynamic"
+@config_doc(
+    header="""
+    Get current values of the global configuration.
+    """,
+    returns="""
+    Returns
+    -------
+    args: Dict[str, Any]
+        The list of global parameters and their values
+            """,
+)
+def get_config() -> Dict[str, Any]:
+    config_str = ctypes.c_char_p()
+    _check_call(_LIB.XGBGetGlobalConfig(ctypes.byref(config_str)))
+    value = config_str.value
+    assert value
+    config = json.loads(py_str(value))
+    return config
 
 
-build_libstdcxx_linkage_type = _build_libstdcxx_linkage_type()
+@contextmanager
+@config_doc(
+    header="""
+    Context manager for global XGBoost configuration.
+    """,
+    parameters="""
+    Parameters
+    ----------
+    new_config: Dict[str, Any]
+        Keyword arguments representing the parameters and their values
+            """,
+    extra_note="""
+    .. note::
 
+        All settings, not just those presently modified, will be returned to their
+        previous values when the context manager is exited. This is not thread-safe.
+            """,
+    see_also="""
+    See Also
+    --------
+    set_config: Set global XGBoost configuration
+    get_config: Get current values of the global configuration
+            """,
+)
+def config_context(**new_config: Any) -> Iterator[None]:
+    old_config = get_config().copy()
+    set_config(**new_config)
 
-def _package_format():
-    """
-    Returns "wheel", "conda" or "unspecified"
-    """
-    return ffi.lib.LLVMPY_PackageFormat().decode()
-
-
-package_format = _package_format()
-
-
-def _llvm_assertions_state():
-    """
-    Returns one of "on", "off" or "unknown". Depending on whether it is
-    determined that LLVM was build with assertions on, off, or is not known.
-    "Is not known" is typically from a dynamic linkage against LLVM in which
-    case it's not easily identified whether LLVM was built with assertions.
-    """
-    return ffi.lib.LLVMPY_LlvmAssertionsState().decode()
-
-
-llvm_assertions_state = _llvm_assertions_state()
-
-
-@cache
-def get_sysinfo():
-    d = dict()
-    d["ffi_lib_location"] = ffi.lib._name
-    d["package_format"] = package_format
-    d["llvm_linkage_type"] = build_llvm_linkage_type
-    d["libstdcxx_linkage_type"] = build_libstdcxx_linkage_type
-    d["llvm_assertions_state"] = llvm_assertions_state
-
-    # import lief
-    HAVE_LIEF = False
     try:
-        import lief
-        HAVE_LIEF = True
-    except ImportError:
-        msg = "py-lief package not found, sysinfo is limited as a result"
-        warnings.warn(msg)
-
-    d["lief_probe_status"] = HAVE_LIEF
-    d["linked_libraries"] = None
-    d["canonicalised_linked_libraries"] = None
-
-    def canonicalise_library_type(dso):
-        """Canonicalises the representation of the binary::libraries as a
-        sequence of strings"""
-        # Note lief v16:
-        # Mach-O .libraries are DylibCommand instances.
-        # Windows PE and Linux ELF .libraries are strings.
-        return [getattr(x, "name", x) for x in dso.libraries]
-
-    def canonicalise_library_spelling(libs):
-        # This adjusts the library "spelling" so that it just contains the
-        # name given to the linker. e.g. `@rpath/somewhere/libfoo.so.1.3`
-        # would be canonicalised to "foo".
-        fixes = []
-        for lib in libs:
-            # some libraries, e.g. Mach-O have an @rpath or system path
-            # prefix in their name, remove it.
-            path_stripped = os.path.split(lib)[-1]
-            # Assume all library names contain at least one dot, even if they
-            # don't it's fine, the first part is the piece of interest.
-            prefix_libname = path_stripped.split(".")[0]
-            linker_name = prefix_libname.replace("lib", "").replace("LIB", "")
-            # further canonicalize by referring to all libraries in lower case.
-            fixes.append(linker_name.lower())
-        return fixes
-
-    if HAVE_LIEF:
-        dso = lief.parse(d["ffi_lib_location"])
-        link_libs = tuple(canonicalise_library_type(dso))
-        d["linked_libraries"] = link_libs
-        canonicalised_libs = canonicalise_library_spelling(link_libs)
-        d["canonicalised_linked_libraries"] = canonicalised_libs
-
-    return d
+        yield
+    finally:
+        set_config(**old_config)

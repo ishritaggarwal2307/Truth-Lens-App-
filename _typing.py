@@ -1,84 +1,125 @@
-from __future__ import annotations
+# pylint: disable=protected-access
+"""Shared typing definition."""
 
-from typing import Callable, Generator, List, TypeVar, Union, Tuple, Any, Sequence
-from typing_extensions import Literal, Never
+import ctypes
+import os
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AnyStr,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeAlias,
+    TypeVar,
+    Union,
+)
+
 import numpy as np
-from numpy.typing import ArrayLike
 
+DataType = Any
 
-_WindowSpec = Union[str, Tuple[Any, ...], float, Callable[[int], np.ndarray], ArrayLike]
+FeatureInfo = Sequence[str]
+FeatureNames = FeatureInfo
+FeatureTypes = FeatureInfo
+BoosterParam = Union[List, Dict[str, Any]]  # better be sequence
+
+ArrayLike = Any
+if TYPE_CHECKING:
+    import pyarrow as pa
+
+    PathLike = Union[str, os.PathLike[str]]
+else:
+    PathLike = Union[str, os.PathLike]
+
+ArrowCatCol: TypeAlias = Optional[Union["pa.StringArray", "pa.NumericArray"]]
+ArrowCatList: TypeAlias = List[Tuple[str, Optional[ArrowCatCol]]]
+
+CupyT = ArrayLike  # maybe need a stub for cupy arrays
+NumpyOrCupy = Union[np.ndarray, Any]
+NumpyDType = Union[str, Type[np.number]]
+PandasDType = Any  # real type is pandas.core.dtypes.base.ExtensionDtype
+
+FloatCompatible = Union[float, np.float32, np.float64]
+
+# typing.SupportsInt is not suitable here since floating point values are convertible to
+# integers as well.
+Integer = Union[int, np.integer]
+IterationRange = Tuple[Integer, Integer]
+
+# callables
+FPreProcCallable = Callable
+
+# ctypes
+# c_bst_ulong corresponds to bst_ulong defined in xgboost/c_api.h
+c_bst_ulong = ctypes.c_uint64  # pylint: disable=C0103
+
+ModelIn = Union[os.PathLike[AnyStr], bytearray, str]
+
+CTypeT = TypeVar(
+    "CTypeT",
+    ctypes.c_void_p,
+    ctypes.c_char_p,
+    ctypes.c_int,
+    ctypes.c_float,
+    ctypes.c_uint,
+    ctypes.c_size_t,
+)
+
+# supported numeric types
+CNumeric = Union[
+    ctypes.c_float,
+    ctypes.c_double,
+    ctypes.c_uint,
+    ctypes.c_uint64,
+    ctypes.c_int32,
+    ctypes.c_int64,
+]
+
+# c pointer types
+if TYPE_CHECKING:
+    CStrPtr = ctypes._Pointer[ctypes.c_char]
+
+    CStrPptr = ctypes._Pointer[ctypes.c_char_p]
+
+    CFloatPtr = ctypes._Pointer[ctypes.c_float]
+
+    CNumericPtr = Union[
+        ctypes._Pointer[ctypes.c_float],
+        ctypes._Pointer[ctypes.c_double],
+        ctypes._Pointer[ctypes.c_uint],
+        ctypes._Pointer[ctypes.c_uint64],
+        ctypes._Pointer[ctypes.c_int32],
+        ctypes._Pointer[ctypes.c_int64],
+    ]
+else:
+    CStrPtr = ctypes._Pointer
+
+    CStrPptr = ctypes._Pointer
+
+    CFloatPtr = ctypes._Pointer
+
+    CNumericPtr = Union[
+        ctypes._Pointer,
+        ctypes._Pointer,
+        ctypes._Pointer,
+        ctypes._Pointer,
+        ctypes._Pointer,
+        ctypes._Pointer,
+    ]
+
+# The second arg is actually Optional[List[cudf.Series]], skipped for easier type check.
+# The cudf Series is the obtained cat codes, preserved in the `DataIter` to prevent it
+# being freed.
+TransformedData = Tuple[Any, Optional[FeatureNames], Optional[FeatureTypes]]
+
+# template parameter
 _T = TypeVar("_T")
-_IterableLike = Union[List[_T], Tuple[_T, ...], Generator[_T, None, None]]
-_SequenceLike = Union[Sequence[_T], np.ndarray]
-_ScalarOrSequence = Union[_T, _SequenceLike[_T]]
+_F = TypeVar("_F", bound=Callable[..., Any])
 
-# The following definitions are copied from numpy/_typing/_scalars.py
-# (We don't import them directly from numpy because they're an implementation detail.)
-###
-### START COPIED CODE
-###
-_CharLike_co = Union[str, bytes]
-# The 6 `<X>Like_co` type-aliases below represent all scalars that can be
-# coerced into `<X>` (with the casting rule `same_kind`)
-_BoolLike_co = Union[bool, np.bool_]
-_UIntLike_co = Union[_BoolLike_co, "np.unsignedinteger[Any]"]
-_IntLike_co = Union[_BoolLike_co, int, "np.integer[Any]"]
-_FloatLike_co = Union[_IntLike_co, float, "np.floating[Any]"]
-_ComplexLike_co = Union[_FloatLike_co, complex, "np.complexfloating[Any, Any]"]
-_TD64Like_co = Union[_IntLike_co, np.timedelta64]
-
-_NumberLike_co = Union[int, float, complex, "np.number[Any]", np.bool_]
-_ScalarLike_co = Union[
-    int,
-    float,
-    complex,
-    str,
-    bytes,
-    np.generic,
-]
-# `_VoidLike_co` is technically not a scalar, but it's close enough
-_VoidLike_co = Union[Tuple[Any, ...], np.void]
-
-
-# Padding modes in general
-_ModeKind = Literal[
-    "constant",
-    "edge",
-    "linear_ramp",
-    "maximum",
-    "mean",
-    "median",
-    "minimum",
-    "reflect",
-    "symmetric",
-    "wrap",
-    "empty",
-]
-###
-### END COPIED CODE
-###
-
-# Padding modes for head/tail padding
-# These rule out padding modes that depend on the entire array
-_STFTPad = Literal[
-    "constant",
-    "edge",
-    "linear_ramp",
-    "reflect",
-    "symmetric",
-    "empty",
-]
-
-_PadMode = Union[_ModeKind, Callable[..., Any]]
-
-_PadModeSTFT = Union[_STFTPad, Callable[..., Any]]
-
-
-def _ensure_not_reachable(__arg: Never):
-    """
-    Ensure that a code path is not reachable, like typing_extension.assert_never.
-
-    This doesn't raise an exception so that we are forced to manually
-    raise a more user friendly exception afterwards.
-    """
-    ...
+_ScoreList = Union[List[float], List[Tuple[float, float]]]
+EvalsLog: TypeAlias = Dict[str, Dict[str, _ScoreList]]
