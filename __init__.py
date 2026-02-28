@@ -1,5 +1,8 @@
-"""fontTools.voltLib -- a package for dealing with Visual OpenType Layout Tool
-(VOLT) files."""
+import logging
+from fontTools.misc.loggingTools import configLogger
 
-# See
-# http://www.microsoft.com/typography/VOLT.mspx
+log = logging.getLogger(__name__)
+
+version = __version__ = "4.61.1"
+
+__all__ = ["version", "log", "configLogger"]
